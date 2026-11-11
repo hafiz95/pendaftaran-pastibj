@@ -3,5 +3,5 @@
 window.PASTI_CONFIG = {
   url: "https://rhazrtvppefszujhwfak.supabase.co",
   key: "sb_publishable_9Ib5I6IJ9w6DswnOXN7pPg_axvw8s98",
-  turnstileSiteKey: ""
+  turnstileSiteKey: "0x4AAAAAAF8mWt51TMMZ7LAn"
 };
