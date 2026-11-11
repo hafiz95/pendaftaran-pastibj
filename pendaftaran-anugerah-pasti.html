@@ -77,61 +77,8 @@ th{color:var(--mute);font-weight:600}
 
 <div class="ok hide" id="ok" role="status"><b>Pendaftaran diterima</b><span id="ringkas"></span></div>
 
-<section class="admin card hide" id="admin">
-<h2>Senarai pendaftaran</h2>
-<div class="stats">
-<div class="stat"><span>Pelajar</span><b id="sPel">0</b></div>
-<div class="stat"><span>Jumlah hadir</span><b id="sHadir">0</b></div>
-</div>
-<div class="wrap"><table><thead><tr><th>Pelajar</th><th>Cawangan</th><th>Kategori</th><th>Tetamu</th><th>Telefon</th></tr></thead><tbody id="rows"></tbody></table></div>
-<button class="main" id="muat">Muat turun CSV</button>
-</section>
+<p><a href="/admin.html">Log masuk admin</a></p>
 </main>
-<script>
-var n=2,rows=[];
-var $=function(i){return document.getElementById(i)};
-$('tambah').onclick=function(){if(n<10){n++;$('bil').textContent=n}};
-$('kurang').onclick=function(){if(n>0){n--;$('bil').textContent=n}};
-function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
-function slug(s){return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,80)}
-['nama','cawangan','kategori','penjaga','tel'].forEach(function(i){$(i).addEventListener('input',function(){$('err').textContent=''})});
-$('hantar').onclick=async function(){
-var d={nama:$('nama').value.trim(),cawangan:$('cawangan').value.trim(),kategori:$('kategori').value,penjaga:$('penjaga').value.trim(),tel:$('tel').value.trim(),tetamu:n,khas:$('khas').value.trim(),masa:new Date().toISOString()};
-if(!d.nama||!d.cawangan||!d.kategori||!d.penjaga||!d.tel){$('err').textContent='Lengkapkan semua medan wajib dahulu.';return}
-if(!/^[0-9+\-\s]{9,15}$/.test(d.tel)){$('err').textContent='No. telefon tidak sah. Semak semula.';return}
-var db=await claude.use('db');
-if(!db){$('err').textContent='Pendaftaran belum boleh dihantar. Log masuk ke akaun Claude dan buka semula pautan ini.';return}
-try{
-var user=await claude.use('user');var uid=await user.id();
-var ref=db.collection('registrations').doc(uid);
-var snap=await ref.get();var anak=(snap.exists&&snap.data().anak)||[];
-var key=slug(d.nama)+'-'+slug(d.cawangan);d.key=key;
-anak=anak.filter(function(a){return a.key!==key}).concat([d]);
-await ref.set({anak:anak});
-$('ringkas').textContent=d.nama+' ('+d.cawangan+'), '+d.tetamu+' tetamu. Terima kasih, ibu bapa akan dihubungi melalui '+d.tel+'.';
-$('ok').classList.remove('hide');$('borang').classList.add('hide');
-}catch(e){$('err').textContent='Gagal menghantar. Cuba lagi sebentar.'}
-};
-function render(){
-var t=0;$('rows').innerHTML=rows.map(function(r){t+=Number(r.tetamu)||0;return '<tr><td>'+esc(r.nama)+'</td><td>'+esc(r.cawangan)+'</td><td>'+esc(r.kategori)+'</td><td>'+esc(String(r.tetamu))+'</td><td>'+esc(r.tel)+'</td></tr>'}).join('');
-$('sPel').textContent=rows.length;$('sHadir').textContent=rows.length+t;
-}
-$('muat').onclick=async function(){
-var dl=await claude.use('downloads');if(!dl)return;
-var q=function(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"'};
-var csv=['Pelajar,Cawangan,Kategori,Penjaga,Telefon,Tetamu,Keperluan khas'].concat(rows.map(function(r){return [r.nama,r.cawangan,r.kategori,r.penjaga,r.tel,r.tetamu,r.khas].map(q).join(',')})).join('\n');
-try{await dl.save({filename:'pendaftaran-anugerah-pasti.csv',data:csv})}catch(e){}
-};
-(async function(){
-try{
-var user=await claude.use('user');
-if(!user||!user.canEdit())return;
-var db=await claude.use('db');if(!db)return;
-$('admin').classList.remove('hide');
-var t=setTimeout(function(){},10000);
-db.collection('registrations').onSnapshot(function(s){clearTimeout(t);rows=[];s.docs.forEach(function(d){((d.data()||{}).anak||[]).forEach(function(a){rows.push(a)})});render()},function(){});
-}catch(e){}
-})();
-</script>
+<script src="/config.js"></script><script src="/common.js"></script><script src="/registration.js"></script>
 </body>
 </html>
