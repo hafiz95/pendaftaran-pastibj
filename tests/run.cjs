@@ -7,7 +7,7 @@ const valid={nama:'Aisyah',cawangan:'PASTI BJ',kategori:'Hadir sahaja',penjaga:'
 test('valid registration and guest boundaries',()=>{p.validate(valid);p.validate({...valid,tetamu:0});p.validate({...valid,tetamu:10});});
 test('reject invalid/missing fields and bounds',()=>{for(const change of [{nama:''},{cawangan:'x'.repeat(151)},{kategori:'invalid'},{tel:'abc'},{tetamu:11},{tetamu:-1},{tetamu:1.5},{khas:'a'.repeat(501)}])assert.throws(()=>p.validate({...valid,...change}));});
 test('CSV quoting Unicode and formula protection',()=>{const s=p.csv([{...valid,nama:'=1+1',khas:'Koma, "petikan"\nbaris'}]);assert(s.startsWith('\uFEFF'));assert(s.includes('"\'=1+1"'));assert(s.includes('""petikan""'));assert(s.includes('012-3456789'));});
-test('all scripts parse',()=>{for(const name of ['common.js','registration.js','admin.js','config.js'])new vm.Script(fs.readFileSync(path.join(root,name),'utf8'),{filename:name});});
+test('all scripts parse',()=>{for(const name of ['common.js','registration.js','admin.js','config.js','api/register.js'])new vm.Script(fs.readFileSync(path.join(root,name),'utf8'),{filename:name});});
 test('no original runtime dependency and original responsive style retained',()=>{const html=fs.readFileSync(path.join(root,'pendaftaran-anugerah-pasti.html'),'utf8');assert(!/claude\.use/.test(html));assert(html.includes('max-width:560px'));assert(html.includes('--green:#1f4d3a'));assert(html.includes('prefers-color-scheme:dark'));assert(html.includes('min-height:44px'));});
 function dom(){const nodes={};function el(){return {value:'',textContent:'',disabled:false,hidden:false,classList:{add(){},remove(){}},appendChild(){},focus(){},querySelector(){return el();}};}return {nodes,getElementById(id){return nodes[id]||(nodes[id]=el());},createElement:el};}
 (async()=>{
@@ -17,10 +17,11 @@ test('publishable key never sent as bearer',()=>{assert.equal(requests[0].o.head
 await c.Pasti.api('/rest/v1/registrations',{},'user-jwt');
 test('admin JWT sent as bearer',()=>assert.equal(requests[1].o.headers.Authorization,'Bearer user-jwt'));
 c.PASTI_CONFIG.key='sb_secret_bad';await assert.rejects(c.Pasti.api('/rest/v1/registrations'));passed++;console.log('PASS secret key rejected');
-c.PASTI_CONFIG.key='sb_publishable_test';vm.runInContext(fs.readFileSync(path.join(root,'registration.js'),'utf8'),c);
+c.PASTI_CONFIG.key='sb_publishable_test';c.PASTI_CONFIG.turnstileSiteKey='PUBLIC_TEST_SITEKEY';c.turnstile={render:()=>1,getResponse:()=> 'UNIT_TEST_TOKEN',reset:()=>{}};vm.runInContext(fs.readFileSync(path.join(root,'registration.js'),'utf8'),c);c.pastiTurnstileReady();
 Object.keys(valid).filter(k=>k!=='tetamu').forEach(k=>document.getElementById(k).value=valid[k]);
 await document.getElementById('hantar').onclick();
-test('public registration posts minimal response and releases button',()=>{const req=requests[requests.length-1];assert.equal(req.o.method,'POST');assert.equal(req.o.headers.Prefer,'return=minimal');assert.equal(JSON.parse(req.o.body).nama,'Aisyah');assert.equal(document.getElementById('hantar').disabled,false);});
+test('registration uses same-origin protected endpoint and Turnstile token',()=>{const req=requests[requests.length-1];assert.equal(req.url,'/api/register');assert.equal(req.o.method,'POST');assert.equal(req.o.headers.apikey,undefined);assert.equal(JSON.parse(req.o.body).turnstileToken,'UNIT_TEST_TOKEN');assert.equal(JSON.parse(req.o.body).nama,'Aisyah');assert.equal(document.getElementById('hantar').disabled,false);});
+let before=requests.length;c.turnstile.getResponse=()=>'';await document.getElementById('hantar').onclick();test('missing widget token sends no request',()=>assert.equal(requests.length,before));c.turnstile.getResponse=()=>'UNIT_TEST_TOKEN';
 c.fetch=async()=>{throw Error('offline');};await document.getElementById('hantar').onclick();
 test('network failure displays error and permits retry',()=>{assert.equal(document.getElementById('err').textContent,'offline');assert.equal(document.getElementById('hantar').disabled,false);});
 let adminCalls=[],allowed=true,adminDoc=dom();
@@ -33,6 +34,6 @@ a.openEdit(a.records[0]);Object.keys(valid).forEach(k=>adminDoc.getElementById('
 test('admin update uses record id and concurrency timestamp',()=>{const call=adminCalls.find(x=>x.o&&x.o.method==='PATCH');assert(call.url.includes('id=eq.record-1&updated_at=eq.'));assert.equal(JSON.parse(call.o.body).nama,'Nama baru');assert.equal(call.t,'admin-jwt');});
 allowed=false;await adminDoc.getElementById('reload').onclick();
 test('revoked admin access clears sensitive records',()=>{assert.equal(a.token,null);assert.equal(a.records.length,0);assert.equal(adminDoc.getElementById('dashboard').hidden,true);});
-test('deployment remains disabled',()=>assert.equal(JSON.parse(fs.readFileSync(path.join(root,'vercel.json'))).git.deploymentEnabled,false));
+test('Vercel Preview Git integration and Turnstile CSP',()=>{const config=JSON.parse(fs.readFileSync(path.join(root,'vercel.json')));assert.equal(config.git.deploymentEnabled,true);const csp=config.headers[0].headers.find(h=>h.key==='Content-Security-Policy').value;assert(csp.includes("connect-src 'self'"));assert(csp.includes('frame-src https://challenges.cloudflare.com'));assert(csp.includes("script-src 'self' https://challenges.cloudflare.com"));});
 console.log(passed+' tests passed');
 })().catch(e=>{console.error(e);process.exitCode=1;});

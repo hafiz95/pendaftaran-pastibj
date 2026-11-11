@@ -1,60 +1,56 @@
 # Pendaftaran Majlis Anugerah Pelajar PASTI
 
-Aplikasi statik tanpa dependency runtime atau build step. PGlite hanya dependency pembangunan untuk ujian PostgreSQL. Laluan / memaparkan borang asal; /admin.html untuk admin.
+Borang asal, tema hijau/emas, mod gelap dan CSS telefon dikekalkan. Satu-satunya penambahan visual ialah widget Turnstile bersaiz compact. Dashboard Supabase Auth mengekalkan senarai, statistik, carian, kemas kini dan eksport CSV.
 
-## Analisis asal
-HTML satu fail menggunakan CSS hijau/emas, font Bricolage Grotesque dan Source Sans 3, mod gelap automatik, lebar 560px, safe-area telefon dan sasaran sentuhan 44px. Semua CSS borang dikekalkan. Kod asal memerlukan identiti Claude dan menyimpan anak dalam dokumen pengguna; admin bergantung kepada canEdit dan CSV kepada downloads. Semua panggilan tersebut diganti dengan Supabase REST/Auth dan Blob pelayar. Data lama tidak dipindahkan secara automatik.
+## Laluan pendaftaran
+Pelayar menghantar borang dan token Turnstile ke endpoint Vercel `POST /api/register`. Tiada lagi INSERT Supabase terus daripada borang. Endpoint:
+- Mengehadkan origin tepat, saiz JSON 8 KiB dan medan borang.
+- Menggunakan IP daripada X-Forwarded-For yang ditulis semula oleh Vercel; dalam mod tempatan, menggunakan socket.remoteAddress dan mengabaikan header klien. Jangan letak reverse proxy luar di hadapan Vercel tanpa menyemak semula model IP.
+- Memanggil RPC had kadar secara berasingan sebelum Siteverify: 10 cubaan/IP/tetingkap tetap 10 minit dan 300 cubaan global/minit. Semua cubaan borang sah, termasuk token gagal, dikira. Tetingkap tetap membenarkan burst merentas sempadan tetingkap; pengguna berkongsi IP berkongsi kuota.
+- Mengesahkan token sekali melalui Cloudflare, termasuk success, hostname yang sepadan dengan origin, action pasti_registration dan umur maksimum 300 saat. Kegagalan provider/database menutup pendaftaran dengan respons umum.
+- Menyimpan melalui RPC service_role sahaja. SQL UNIQUE index menolak pendua secara atomik. Respons 202 untuk rekod baharu dan pendua adalah sama dan tidak mengandungi data keluarga atau ID.
 
-## Persediaan Supabase langkah demi langkah
-1. Checkout branch `codex/supabase-registration-admin` (PR #1). Gunakan projek Supabase staging baharu terlebih dahulu; belum perlu deploy Vercel.
-2. Di Supabase Dashboard, cipta projek dan tunggu database sedia. Buka SQL Editor sebagai peranan postgres.
-3. Jika pernah mencuba migration rosak, jalankan `rollback;` dalam sesi berkenaan. Semak keadaan:
-   ```sql
-   select to_regclass('public.registrations'), to_regclass('public.admin_users');
-   ```
-   Kedua-duanya mestilah NULL untuk migration awal ini. Jika objek sudah wujud (contohnya sebahagian SQL pernah dijalankan), jangan DROP atau jalankan semula secara membuta tuli; guna projek staging baharu atau semak schema/data dahulu.
-4. Buka `supabase/migrations/001_registrations.sql` dari branch PR. Salin SELURUH fail ke SQL Editor dan Run sekali. Fail bermula BEGIN dan berakhir dengan satu COMMIT; jangan jalankan cebisan SQL. Migration ini untuk schema baharu, bukan skrip idempotent.
-5. Dalam SQL Editor, jalankan SELURUH `supabase/tests/rls.sql` sebagai postgres. Ia mencipta fixture rawak, bertukar kepada role anon/authenticated, mengesahkan akses dan berakhir ROLLBACK. Kejayaan: tiada ralat assertion, dan NOTICE PASS jika dipaparkan oleh klien. Jika gagal, jalankan ROLLBACK sebelum mencuba lagi. Ujian tidak menyimpan pengguna atau pendaftaran contoh.
-6. Di Authentication, matikan pendaftaran akaun baharu/public signup. Kekalkan kaedah email/password. Di Users, tambah pengguna admin secara manual, tandakan e-mel disahkan dan tetapkan kata laluan kuat. Salin UUID pengguna. Jangan guna akaun fixture ujian.
-7. Dalam SQL Editor sebagai postgres, beri akses:
-   ```sql
-   insert into public.admin_users(user_id)
-   values ('GANTIKAN-DENGAN-UUID-ADMIN'::uuid);
-   ```
-   Keahlian mesti ditambah oleh pemilik projek, bukan melalui frontend. Untuk menarik balik akses:
-   ```sql
-   delete from public.admin_users
-   where user_id = 'GANTIKAN-DENGAN-UUID-ADMIN'::uuid;
-   ```
-8. Salin Project URL dan publishable key daripada tetapan projek/API Keys. Isi `config.js`:
-   ```js
-   window.PASTI_CONFIG = {
-     url: "https://PROJECT-REF.supabase.co",
-     key: "sb_publishable_GANTIKAN"
-   };
-   ```
-   Legacy anon key juga disokong. Jangan guna service_role, sb_secret, kata laluan database atau connection string dalam frontend.
-9. Hidangkan fail secara HTTP melalui pelayan statik tempatan (contohnya `npx --yes serve .` dari akar repository), buka `/pendaftaran-anugerah-pasti.html`, hantar data contoh tanpa login. Buka `/admin.html`, login dengan admin dan semak senarai, jumlah pelajar/tetamu, carian, edit dan CSV. Akaun biasa tidak mendapat akses admin. Reload halaman atau token tamat memerlukan login semula kerana token hanya disimpan dalam memori.
-10. Selepas semua ujian staging lulus, konfigurasi projek sebenar dengan langkah yang sama. Kekalkan `git.deploymentEnabled=false`; jangan deploy sehingga dibenarkan.
+Pendua ditakrifkan sebagai gabungan nama pelajar + cawangan (huruf kecil, ruang dinormalkan) + telefon (digit sahaja). Penukaran telefon menghasilkan identiti pendua berbeza; ini bukan pengesahan identiti. Endpoint tidak memadam atau menimpa rekod lama. Kemaskini admin yang menghasilkan pendua juga ditolak oleh database.
 
+Had kadar disimpan dalam schema pasti_private, bukan memori fungsi. IP dipseudonimkan menggunakan HMAC-SHA256; alamat IP asal tidak disimpan. Bucket lebih sejam dibersihkan apabila endpoint dipanggil. HMAC masih data pseudonim; hadkan akses pemilik projek. Tiada payload, token, kata laluan atau error database dilog oleh kod aplikasi. Jangan aktifkan log badan permintaan pada platform.
 
-Anon boleh INSERT medan borang sahaja; tiada SELECT/UPDATE/DELETE. Akaun authenticated biasa juga tidak boleh membaca atau mengemas kini. Admin membership tersimpan dalam jadual RLS tanpa grant kepada pengguna. is_admin ialah fungsi security definer dengan search_path kosong dan akses authenticated sahaja. ID dan timestamp dijana database. Kemaskini menggunakan updated_at untuk mengesan perubahan serentak. Semua paparan data menggunakan textContent. CSV neutralize formula spreadsheet dan eksport hasil carian.
+## Migration dan RLS
+001 ialah migration asal untuk pemasangan baharu. Projek yang sudah menjalankannya hanya memerlukan 002_secure_registration.sql pada masa cutover yang dirancang. Jangan jalankan semula 001.
+002 menarik balik grant INSERT per jadual DAN per kolum daripada PUBLIC/anon/authenticated, membuang polisi INSERT/ALL, menambah unique index, bucket kadar dan dua RPC yang hanya service_role boleh execute. Polisi SELECT/UPDATE admin dikekalkan; tiada perubahan admin_users oleh frontend.
 
-## Jalankan dan uji
-Node.js 22+:
-```sh
-npm ci
-npm test
-```
-`npm run test:app`: 15 ujian JavaScript dengan mock API/DOM.
-`npm run test:db`: jalankan keseluruhan migration dalam PostgreSQL terbenam PGlite, kemudian 33 assertion SQL RLS, pengesahan rollback fixture dan 2 mutation check. Mutation check sengaja membuka polisi SELECT atau membuang constraint telefon dan memastikan suite gagal.
+Jika pendua sejarah wujud, unique index membatalkan keseluruhan migration; tiada data dipadam automatik. supabase/preflight.sql mengira kumpulan pendua tanpa memaparkan nama/telefon. supabase/audit.sql membaca metadata RLS/grant/polisi/RPC/index sahaja dan mengandungi assertion; ia juga menyenaraikan view/security-definer untuk semakan manual. Ia bukan pengganti suite behavioral supabase/tests/rls.sql atau ujian JWT sebenar.
 
-Bootstrap tests/database.cjs menyediakan kontrak minimum Supabase Auth (auth.users, auth.uid, role anon/authenticated) dalam database sementara. Ia tidak menggantikan ujian Supabase sebenar: Auth service, PostgREST dan konfigurasi projek sebenar masih perlu diuji mengikut langkah setup. `supabase/tests/rls.sql` boleh dijalankan terus dalam Supabase SQL Editor; tiada PGlite atau pgTAP diperlukan di Supabase.
+Jangan jalankan 002 pada Production sekarang. Ia akan memutuskan borang lama yang masih membuat INSERT terus. Cutover memerlukan endpoint/widget yang dikonfigurasi dan tersedia dalam Preview serta penjadualan perubahan DB/versi frontend; gunakan projek staging dahulu. Tiada migration jauh dijalankan oleh PR ini.
 
-## Vercel (jangan deploy lagi)
-Import repository hanya selepas semakan diluluskan. Framework preset Other, tiada build command, output directory akar. config.js mesti diisi dengan konfigurasi awam sebelum release. vercel.json mematikan auto deployment Git dengan git.deploymentEnabled=false; kekalkan sehingga dibenarkan deploy dan ubah kepada true dalam perubahan berasingan. Tiada deployment dibuat oleh perubahan ini.
+## Konfigurasi rujukan (nilai sebenar tidak disertakan)
+Frontend config.js mengekalkan URL dan publishable key sedia ada dan menambah turnstileSiteKey kosong. Site key Turnstile adalah awam. Nilai kosong membuat borang gagal secara selamat sehingga dikonfigurasi.
 
-## Had operasi
-Satu rekod = satu pelajar; tetamu tidak termasuk pelajar. Statistik seluruh senarai, CSV mengikut carian. Pendaftaran kedua ialah rekod baharu, bukan overwrite nama sama. Tiada CAPTCHA/rate limiter untuk endpoint insert awam; sebelum membuka kepada umum, tentukan perlindungan spam di gateway/Edge Function (RLS sahaja tidak menghadkan kadar). Senarai dipaginasi ketika dimuat turun, kemudian carian berlaku dalam pelayar. Untuk jumlah data besar, gunakan pagination/carían server. Data lama Claude memerlukan eksport/import yang diluluskan. Tiada projek Supabase atau kelayakan staging diberikan, jadi ujian pangkalan data sebenar perlu dijalankan selepas konfigurasi.
+| Pembolehubah pelayan | Kegunaan |
+| --- | --- |
+| SUPABASE_URL | URL projek yang sama dengan frontend |
+| SUPABASE_SERVER_KEY | Supabase secret key sb_secret_ atau legacy service_role JWT; server sahaja |
+| TURNSTILE_SECRET_KEY | Secret key Cloudflare; server sahaja |
+| RATE_LIMIT_SECRET | Rahsia rawak sekurang-kurangnya 32 aksara untuk HMAC IP; server sahaja |
+| REGISTRATION_ORIGINS | Origin tepat dipisahkan koma, tiada wildcard; origin Preview yang dibenarkan |
 
-Rujukan: https://supabase.com/docs/guides/database/postgres/row-level-security dan https://supabase.com/docs/guides/getting-started/api-keys serta https://vercel.com/docs/project-configuration/git-configuration.
+Simpan pembolehubah hanya dalam persekitaran Vercel Preview atau .env tempatan yang diabaikan Git. Jangan isi config.js dengan mana-mana rahsia pelayan. .env.example mempunyai nama sahaja. Turnstile hostname allowlist dan origin perlu sepadan dengan domain Preview sebenar. Jangan gunakan test key Cloudflare untuk Production.
+
+## Panduan konfigurasi semasa: satu langkah sahaja
+Langkah pertama ialah menjalankan supabase/preflight.sql sebagai postgres di SQL Editor projek staging sedia ada. Laporkan hanya dua boolean kewujudan jadual dan bilangan kumpulan pendua; jangan hantar rekod murid/ibu bapa. Selepas keputusan itu, konfigurasi Cloudflare, environment Preview dan cutover akan dipandu satu langkah pada satu masa. Jangan jalankan 002 atau deploy Production dahulu.
+
+## Ujian dan pembangunan
+Gunakan Node.js 22.x. npm ci kemudian npm test menjalankan ujian aplikasi, endpoint (Cloudflare/Supabase disimulasi) dan PostgreSQL PGlite dengan migration 001+002, audit metadata, RLS behavioral, had kadar dan pendua. Fixture semuanya di-ROLLBACK. PGlite ialah devDependency sahaja. Tiada servis luar dipanggil oleh npm test.
+
+Vercel Git Preview kekal enabled; ujian tidak lagi memerlukan deploymentEnabled=false. Push ke branch PR boleh mencetuskan Preview automatik; itu bukan merge atau arahan deploy Production. Endpoint akan memberi 503/borang tidak boleh dihantar sehingga konfigurasi rahsia dan sitekey disediakan. Production tidak dilancarkan oleh tugas ini.
+
+Untuk ujian penuh tempatan selepas konfigurasi, gunakan npx vercel dev; pelayan statik biasa tidak menjalankan /api/register. npm run dev menggunakan Vercel CLI, bukan arahan deploy. Root / kekal memaparkan fail HTML asal. admin.html terus menggunakan Supabase REST dengan JWT; token hanya dalam memori dan reload memerlukan login semula.
+
+## Belum disahkan pada servis sebenar
+Belum disahkan: migration 002 dan audit pada Supabase sebenar; login/JWT bukan admin sebenar; Cloudflare widget/Siteverify termasuk replay token; origin dan IP pada Vercel Preview; had kadar, request serentak dan pendua pada Supabase sebenar; keseluruhan aliran pelayar dan kemaskini admin apabila unique constraint aktif. Ujian mock/PGlite tidak membuktikan konfigurasi servis sebenar.
+
+Had kadar ini mengurangkan spam pendaftaran, bukan perlindungan DDoS volumetrik. Serangan permintaan tidak sah masih boleh menggunakan sumber platform; semak WAF/quotas di Vercel sebelum pelancaran. Semak juga public signup Supabase dimatikan, polisi kata laluan dan rate limit Auth. MFA belum diwajibkan oleh frontend/RLS. Data lama Claude tidak dimigrasikan automatik.
+
+Rujukan:
+- https://developers.cloudflare.com/turnstile/get-started/server-side-validation/
+- https://vercel.com/docs/headers/request-headers
+- https://supabase.com/docs/guides/database/postgres/row-level-security

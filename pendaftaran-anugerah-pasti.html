@@ -71,6 +71,7 @@ th{color:var(--mute);font-weight:600}
 </div>
 <label for="khas">Keperluan khas (pilihan)</label>
 <input id="khas" placeholder="Kerusi roda, alahan makanan">
+<div id="security-widget" style="margin-top:18px"></div>
 <p class="err" id="err" role="alert"></p>
 <button class="main" id="hantar">Hantar pendaftaran</button>
 </div>
@@ -80,5 +81,6 @@ th{color:var(--mute);font-weight:600}
 <p><a href="/admin.html">Log masuk admin</a></p>
 </main>
 <script src="/config.js"></script><script src="/common.js"></script><script src="/registration.js"></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=pastiTurnstileReady&render=explicit" async defer></script>
 </body>
 </html>
