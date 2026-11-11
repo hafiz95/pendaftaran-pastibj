@@ -1,0 +1,16 @@
+{
+  "private": true,
+  "scripts": {
+    "test": "node tests/run.cjs && node tests/server.cjs && node tests/database.cjs",
+    "test:app": "node tests/run.cjs",
+    "test:db": "node tests/database.cjs",
+    "test:server": "node tests/server.cjs",
+    "dev": "npx vercel dev"
+  },
+  "engines": {
+    "node": "22.x"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.16"
+  }
+}
