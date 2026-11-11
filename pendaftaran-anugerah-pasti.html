@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pendaftaran Majlis Anugerah Pelajar PASTI</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+:root{--bg:#f3f7f4;--card:#fff;--ink:#16231d;--mute:#52635a;--green:#1f4d3a;--gold:#c8963e;--line:#d5e0d9;--err:#a32d2d;--ok:#e3f1e8;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101a15;--card:#18271f;--ink:#e8f0eb;--mute:#9db1a6;--green:#7fc4a0;--gold:#e0b562;--line:#2a3d33;--err:#f09595;--ok:#1d3a2a}}
+:root[data-theme="dark"]{--bg:#101a15;--card:#18271f;--ink:#e8f0eb;--mute:#9db1a6;--green:#7fc4a0;--gold:#e0b562;--line:#2a3d33;--err:#f09595;--ok:#1d3a2a}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Source Sans 3",system-ui,sans-serif}
+main{max-width:560px;margin:0 auto;padding:20px 16px 40px}
+h1{font:700 28px/1.15 "Bricolage Grotesque",system-ui,sans-serif;margin:0 0 6px;color:var(--green)}
+.sub{color:var(--mute);margin:0 0 20px}
+.bar{height:4px;width:64px;background:var(--gold);border-radius:2px;margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
+label{display:block;font-weight:600;font-size:14px;margin:14px 0 4px}
+input,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-height:44px}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.row{display:flex;align-items:center;gap:12px}
+button{font:600 16px "Source Sans 3",sans-serif;min-height:44px;border-radius:8px;border:1px solid var(--green);background:var(--card);color:var(--green);padding:0 16px;cursor:pointer}
+button.main{width:100%;background:var(--green);color:var(--bg);margin-top:18px}
+.step{width:44px;padding:0;font-size:20px}
+.err{color:var(--err);font-size:14px;margin:10px 0 0;min-height:20px}
+.ok{background:var(--ok);border-radius:12px;padding:16px;margin-top:14px}
+.ok b{display:block;font-size:18px;color:var(--green)}
+.hide{display:none}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 14px}
+.stat{background:var(--bg);border-radius:8px;padding:10px 12px}
+.stat span{display:block;font-size:13px;color:var(--mute)}
+.stat b{font:700 24px "Bricolage Grotesque",sans-serif}
+.wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:480px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+th{color:var(--mute);font-weight:600}
+.admin{margin-top:24px}
+.admin h2{font:700 20px "Bricolage Grotesque",sans-serif;margin:0 0 12px}
+</style>
+</head>
+<body>
+<main>
+<div class="bar"></div>
+<h1>Majlis Anugerah Pelajar PASTI</h1>
+<p class="sub">Daftarkan anak anda dan tetamu yang akan hadir.</p>
+
+<div class="card" id="borang">
+<label for="nama">Nama penuh pelajar</label>
+<input id="nama" autocomplete="off" placeholder="Nur Aisyah binti Ahmad">
+<label for="cawangan">Cawangan PASTI</label>
+<input id="cawangan" autocomplete="off" placeholder="PASTI Kampung Baru">
+<label for="kategori">Kategori anugerah</label>
+<select id="kategori">
+<option value="">Pilih kategori</option>
+<option>Pelajar cemerlang</option>
+<option>Hafazan terbaik</option>
+<option>Sahsiah terpuji</option>
+<option>Hadir sahaja</option>
+</select>
+<label for="penjaga">Nama ibu bapa/penjaga</label>
+<input id="penjaga" autocomplete="name" placeholder="Ahmad bin Ali">
+<label for="tel">No. telefon (WhatsApp)</label>
+<input id="tel" type="tel" autocomplete="tel" placeholder="012-3456789">
+<label>Bilangan tetamu hadir</label>
+<div class="row">
+<button class="step" id="kurang" aria-label="Kurangkan">−</button>
+<b id="bil" style="min-width:24px;text-align:center;font-size:18px">2</b>
+<button class="step" id="tambah" aria-label="Tambah">+</button>
+</div>
+<label for="khas">Keperluan khas (pilihan)</label>
+<input id="khas" placeholder="Kerusi roda, alahan makanan">
+<p class="err" id="err" role="alert"></p>
+<button class="main" id="hantar">Hantar pendaftaran</button>
+</div>
+
+<div class="ok hide" id="ok" role="status"><b>Pendaftaran diterima</b><span id="ringkas"></span></div>
+
+<section class="admin card hide" id="admin">
+<h2>Senarai pendaftaran</h2>
+<div class="stats">
+<div class="stat"><span>Pelajar</span><b id="sPel">0</b></div>
+<div class="stat"><span>Jumlah hadir</span><b id="sHadir">0</b></div>
+</div>
+<div class="wrap"><table><thead><tr><th>Pelajar</th><th>Cawangan</th><th>Kategori</th><th>Tetamu</th><th>Telefon</th></tr></thead><tbody id="rows"></tbody></table></div>
+<button class="main" id="muat">Muat turun CSV</button>
+</section>
+</main>
+<script>
+var n=2,rows=[];
+var $=function(i){return document.getElementById(i)};
+$('tambah').onclick=function(){if(n<10){n++;$('bil').textContent=n}};
+$('kurang').onclick=function(){if(n>0){n--;$('bil').textContent=n}};
+function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function slug(s){return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,80)}
+['nama','cawangan','kategori','penjaga','tel'].forEach(function(i){$(i).addEventListener('input',function(){$('err').textContent=''})});
+$('hantar').onclick=async function(){
+var d={nama:$('nama').value.trim(),cawangan:$('cawangan').value.trim(),kategori:$('kategori').value,penjaga:$('penjaga').value.trim(),tel:$('tel').value.trim(),tetamu:n,khas:$('khas').value.trim(),masa:new Date().toISOString()};
+if(!d.nama||!d.cawangan||!d.kategori||!d.penjaga||!d.tel){$('err').textContent='Lengkapkan semua medan wajib dahulu.';return}
+if(!/^[0-9+\-\s]{9,15}$/.test(d.tel)){$('err').textContent='No. telefon tidak sah. Semak semula.';return}
+var db=await claude.use('db');
+if(!db){$('err').textContent='Pendaftaran belum boleh dihantar. Log masuk ke akaun Claude dan buka semula pautan ini.';return}
+try{
+var user=await claude.use('user');var uid=await user.id();
+var ref=db.collection('registrations').doc(uid);
+var snap=await ref.get();var anak=(snap.exists&&snap.data().anak)||[];
+var key=slug(d.nama)+'-'+slug(d.cawangan);d.key=key;
+anak=anak.filter(function(a){return a.key!==key}).concat([d]);
+await ref.set({anak:anak});
+$('ringkas').textContent=d.nama+' ('+d.cawangan+'), '+d.tetamu+' tetamu. Terima kasih, ibu bapa akan dihubungi melalui '+d.tel+'.';
+$('ok').classList.remove('hide');$('borang').classList.add('hide');
+}catch(e){$('err').textContent='Gagal menghantar. Cuba lagi sebentar.'}
+};
+function render(){
+var t=0;$('rows').innerHTML=rows.map(function(r){t+=Number(r.tetamu)||0;return '<tr><td>'+esc(r.nama)+'</td><td>'+esc(r.cawangan)+'</td><td>'+esc(r.kategori)+'</td><td>'+esc(String(r.tetamu))+'</td><td>'+esc(r.tel)+'</td></tr>'}).join('');
+$('sPel').textContent=rows.length;$('sHadir').textContent=rows.length+t;
+}
+$('muat').onclick=async function(){
+var dl=await claude.use('downloads');if(!dl)return;
+var q=function(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"'};
+var csv=['Pelajar,Cawangan,Kategori,Penjaga,Telefon,Tetamu,Keperluan khas'].concat(rows.map(function(r){return [r.nama,r.cawangan,r.kategori,r.penjaga,r.tel,r.tetamu,r.khas].map(q).join(',')})).join('\n');
+try{await dl.save({filename:'pendaftaran-anugerah-pasti.csv',data:csv})}catch(e){}
+};
+(async function(){
+try{
+var user=await claude.use('user');
+if(!user||!user.canEdit())return;
+var db=await claude.use('db');if(!db)return;
+$('admin').classList.remove('hide');
+var t=setTimeout(function(){},10000);
+db.collection('registrations').onSnapshot(function(s){clearTimeout(t);rows=[];s.docs.forEach(function(d){((d.data()||{}).anak||[]).forEach(function(a){rows.push(a)})});render()},function(){});
+}catch(e){}
+})();
+</script>
+</body>
+</html>
