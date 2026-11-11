@@ -1,1 +1,15 @@
-{"private":true,"scripts":{"test":"node tests/run.cjs"},"engines":{"node":">=22"}}
+{
+  "private": true,
+  "scripts": {
+    "test": "node tests/run.cjs && node tests/database.cjs",
+    "test:app": "node tests/run.cjs",
+    "test:db": "node tests/database.cjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.16"
+  }
+}
+
